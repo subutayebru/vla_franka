@@ -39,7 +39,14 @@ EE_SITE = "grip_site"   # <-- CHANGE to your end-effector name
 def build_renderer(model):
     # Offscreen buffer for RGB frames to feed VLA (no extra window)
     return mujoco.Renderer(model, height=480, width=640)
-
+_last_a7 = None
+def smooth(a7, alpha=0.5):
+    global _last_a7
+    if _last_a7 is None:
+        _last_a7 = a7.astype(np.float32)
+        return _last_a7
+    _last_a7 = alpha * a7.astype(np.float32) + (1.0 - alpha) * _last_a7
+    return _last_a7
 def vla_to_desired_q(env, renderer, vla, instruction, step_scale=0.03):
     """
     1) Grab RGB offscreen while GUI is open.
@@ -53,8 +60,10 @@ def vla_to_desired_q(env, renderer, vla, instruction, step_scale=0.03):
 
     # 2) VLA inference
     a7 = vla.predict(rgb, instruction)  # [dx,dy,dz, droll,dpitch,dyaw, grip] ~ [-1,1]
+    a7 = smooth(a7, alpha=0.5)
     dx, dy, dz, grip = a7[0], a7[1], a7[2], a7[-1]
-    dx, dy, dz = dx * step_scale, dy * step_scale, dz * step_scale
+    dx, dy, dz = dx * 0.005, dy * 0.005, dz * 0.005
+    #dx, dy, dz = dx * step_scale, dy * step_scale, dz * step_scale
 
     # 3) current EE pose
     sid = get_site_id(env.model, "grip_site")          # site for position
@@ -65,6 +74,9 @@ def vla_to_desired_q(env, renderer, vla, instruction, step_scale=0.03):
 
     target_pos  = p_curr + np.array([dx, dy, dz], dtype=np.float32)
     target_quat = q_curr  # keep orientation for now
+    
+    if np.linalg.norm([dx, dy, dz]) < 1e-5:
+        return env.data.qpos.copy()
 
     desired_q = get_q_from_ik_single(
         env, target_pos, target_quat,
@@ -111,12 +123,18 @@ def main():
         # Refresh target every ~2 sim ticks (~50 Hz if sim ~100 Hz)
         if env.tick % 2 == 0:
             desired_q = vla_to_desired_q(env, renderer, vla, instruction, step_scale=0.03)
+        
+        # Slice target to controllable joints
+        q_trgt_ctrl = desired_q[env.ctrl_joint_idxs]                    # shape (env.n_ctrl,)
+        q_curr_ctrl = env.get_q(joint_idxs=env.ctrl_joint_idxs)         # shape (env.n_ctrl,)
 
         # PID -> torques
-        PID.update(x_trgt=desired_q)
-        PID.update(t_curr=env.get_sim_time(),
-                   x_curr=env.get_q(joint_idxs=env.ctrl_joint_idxs),
-                   VERBOSE=False)
+        PID.update(
+            x_trgt=q_trgt_ctrl,
+            x_curr=q_curr_ctrl,
+            t_curr=env.get_sim_time(),
+            VERBOSE=False
+        )
         torque = PID.out()
 
         # Advance physics
