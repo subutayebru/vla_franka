@@ -111,18 +111,12 @@ def main():
         # Refresh target every ~2 sim ticks (~50 Hz if sim ~100 Hz)
         if env.tick % 2 == 0:
             desired_q = vla_to_desired_q(env, renderer, vla, instruction, step_scale=0.03)
-        
-        # Slice target to controllable joints
-        q_trgt_ctrl = desired_q[env.ctrl_joint_idxs]                    # shape (env.n_ctrl,)
-        q_curr_ctrl = env.get_q(joint_idxs=env.ctrl_joint_idxs)         # shape (env.n_ctrl,)
 
         # PID -> torques
-        PID.update(
-            x_trgt=q_trgt_ctrl,
-            x_curr=q_curr_ctrl,
-            t_curr=env.get_sim_time(),
-            VERBOSE=False
-        )
+        PID.update(x_trgt=desired_q)
+        PID.update(t_curr=env.get_sim_time(),
+                   x_curr=env.get_q(joint_idxs=env.ctrl_joint_idxs),
+                   VERBOSE=False)
         torque = PID.out()
 
         # Advance physics

@@ -47,7 +47,7 @@ def get_q_from_ik_single(
     arm_dofs = []
     for jid in arm_jids:
         adr = m.jnt_dofadr[jid]
-        dofnum = m.jnt_dofnum[jid]
+        dofnum = m.jnt_dofadr[jid]
         arm_dofs.extend(range(adr, adr + dofnum))
     arm_dofs = np.array(arm_dofs, dtype=int)
 
@@ -84,7 +84,8 @@ def get_q_from_ik_single(
         mujoco.mj_forward(m, d)
 
         p_curr = d.site_xpos[site_id].copy()
-        q_curr = d.site_xquat[site_id].copy()
+        bid = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_BODY, "panda_eef")
+        q_curr = d.xquat[bid].copy()  # (4,) w,x,y,z
 
         err_p = target_pos - p_curr
         q_err = quat_mul(target_quat, quat_conj(q_curr))
