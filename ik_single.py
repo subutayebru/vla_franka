@@ -2,6 +2,18 @@
 import numpy as np
 import mujoco
 
+def get_site_id(model, name: str) -> int:
+    sid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_SITE, name)
+    if sid == -1:
+        raise ValueError(f"Site not found: {name}")
+    return sid
+
+def get_joint_id(model, name: str) -> int:
+    jid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, name)
+    if jid == -1:
+        raise ValueError(f"Joint not found: {name}")
+    return jid
+
 def get_q_from_ik_single(
     env,
     target_pos: np.ndarray,
@@ -21,6 +33,7 @@ def get_q_from_ik_single(
     """
     m = env.model
     d = env.data
+
     site_id = get_site_id(m, site_name)
 
     # choose arm joints (exclude fingers)

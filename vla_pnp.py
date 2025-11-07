@@ -57,9 +57,11 @@ def vla_to_desired_q(env, renderer, vla, instruction, step_scale=0.03):
     dx, dy, dz = dx * step_scale, dy * step_scale, dz * step_scale
 
     # 3) current EE pose
-    sid = get_site_id(env.model, EE_SITE)
+    sid = get_site_id(env.model, "grip_site")          # site for position
+    bid = mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_BODY, "panda_eef")  # body for orientation
+
     p_curr = env.data.site_xpos[sid].copy()
-    q_curr = env.data.site_xquat[sid].copy()
+    q_curr = env.data.xquat[bid].copy() 
 
     target_pos  = p_curr + np.array([dx, dy, dz], dtype=np.float32)
     target_quat = q_curr  # keep orientation for now
