@@ -1,0 +1,34 @@
+# configs/default.yaml
+
+camera_name: "panda_eye_in_hand"
+xml_path: "/home/es_admin/vla-franka/Simple-MuJoCo-PickNPlace/asset/panda/franka_panda_w_objs.xml"
+
+startup_ignore_ticks: 0
+phase_agnostic: false
+show_vla_feed: true
+overlay_hud: true
+ablate_vla: false
+
+vla_model_name: "openvla/openvla-7b"
+vla_unnorm_key: "bridge_orig"
+
+instruction: "go over the yellow cube"
+prompt_template: "In:What action should the robot take to {instruction}?\nOut:"
+
+max_tick: 100000
+policy_hz: 5
+sim_hz: 500
+
+pid:
+  kp: 800.0
+  ki: 20.0
+  kd: 100.0
+
+workspace:
+  x: [-0.3, 0.3]
+  y: [-0.3, 0.3]
+  z: [0.0, 0.5]
+
+steps:
+  step_scale_xyz: 0.5
+  step_scale_rpy: 0.8
