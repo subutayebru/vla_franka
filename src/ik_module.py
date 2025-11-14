@@ -1,7 +1,4 @@
-'''
-Code fully based on https://github.com/sjchoi86/yet-another-mujoco-tutorial-v2
-'''
-
+#ik_module.py
 import numpy as np
 import mujoco
 

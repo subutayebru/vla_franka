@@ -86,11 +86,11 @@ dependencies:
       - six==1.17.0
       - sympy==1.14.0
       - timm==0.9.16
-      - tokenizers==0.22.1
+      - tokenizers==0.19.1
       - torch==2.4.1+cu121
       - torchvision==0.19.1+cu121
       - tqdm==4.67.1
-      - transformers==4.57.1
+      - transformers==4.40.1
       - triton==3.0.0
       - typing-extensions==4.15.0
       - urllib3==2.5.0

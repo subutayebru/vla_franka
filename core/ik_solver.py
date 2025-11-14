@@ -1,4 +1,4 @@
-#ik_solver.py
+#core.ik_solver.py
 import numpy as np
 import mujoco
 

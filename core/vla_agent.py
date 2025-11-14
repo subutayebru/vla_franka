@@ -1,41 +1,62 @@
 # core/vla_agent.py
-import numpy as np
-import inspect
-from openvla_wrap import OpenVLA as _OpenVLA
 
-class VLAAgent:
-    def __init__(self, force_text=False, unnorm_key=None, debug=True, device="cuda", log_text_debug=False):
-        # Build kwargs only if the user's OpenVLA supports them
-        sig = inspect.signature(_OpenVLA.__init__)
-        maybe = {}
+from transformers import AutoProcessor, AutoModelForVision2Seq, BitsAndBytesConfig
+import torch
 
-        if "device" in sig.parameters:
-            maybe["device"] = device
-        if "debug" in sig.parameters:
-            maybe["debug"] = debug
-        if "force_text" in sig.parameters:
-            maybe["force_text"] = force_text
-        if "unnorm_key" in sig.parameters:
-            maybe["unnorm_key"] = unnorm_key
-        if "log_text_debug" in sig.parameters:               
-            maybe["log_text_debug"] = log_text_debug        
+from core.config import Cfg  # just for type hints
 
-        try:
-            self.model = _OpenVLA(**maybe)
-        except TypeError:
-            # Fallback to minimal constructor, then set attrs if they exist
-            self.model = _OpenVLA()
-        # Best-effort: set attributes even if they weren't ctor args
-        if hasattr(self.model, "force_text"):
-            self.model.force_text = force_text
-        if hasattr(self.model, "unnorm_key"):
-            self.model.unnorm_key = unnorm_key
-        self.debug = debug
-        if hasattr(self.model, "log_text_debug"):             
-            self.model.log_text_debug = log_text_debug       
 
-    def act(self, rgb, instruction: str) -> np.ndarray:
-        out = self.model.predict(rgb, instruction)
-        if out is None or not np.isfinite(out).all() or getattr(out, "shape", (0,))[0] != 7:
-            return np.array([0, 0, 0, 0, 0, 0, -1], dtype=np.float32)
-        return out.astype(np.float32)
+class OpenVLAAgent:
+    def __init__(self, cfg: Cfg):
+        self.cfg = cfg
+
+        self.bnb_config = BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_quant_type="nf4",
+            bnb_4bit_use_double_quant=True,
+            bnb_4bit_compute_dtype=torch.float16,
+        )
+
+        self.processor = AutoProcessor.from_pretrained(
+            cfg.vla_model_name,
+            trust_remote_code=True,
+        )
+
+        self.model = AutoModelForVision2Seq.from_pretrained(
+            cfg.vla_model_name,
+            torch_dtype=torch.bfloat16,
+            quantization_config=self.bnb_config,
+            device_map="auto",
+            low_cpu_mem_usage=True,
+            trust_remote_code=True,
+        )
+
+    def _format_prompt(self) -> str:
+        # This actually injects the instruction into the template
+        # If you *really* want the old buggy behavior, remove `.format(...)`.
+        return self.cfg.prompt_template.format(instruction=self.cfg.instruction)
+
+    def act(self, image):
+        prompt = self._format_prompt()
+        inputs = self.processor(prompt, image)
+
+        vision_mod = self.model.vision_backbone
+        vision_param = next(vision_mod.parameters())
+        img_dtype = vision_param.dtype
+        img_device = vision_param.device
+
+        inputs["pixel_values"] = inputs["pixel_values"].to(
+            device=img_device, dtype=img_dtype
+        )
+
+        with torch.inference_mode():
+            action = self.model.predict_action(
+                **inputs,
+                unnorm_key=self.cfg.vla_unnorm_key,
+                do_sample=False,
+            )
+
+        if isinstance(action, torch.Tensor):
+            action = action.detach().cpu().numpy()
+
+        return action

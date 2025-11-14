@@ -2,9 +2,7 @@ import numpy as np
 
 from src.mujoco_parser import MuJoCoParserClass
 from src.PID import PID_ControllerClass
-from get_grasp_pose_using_ik import get_q_from_ik
-import os
-os.environ["MUJOCO_GL"] = "egl"  # must be set BEFORE importing mujoco/glfw
+from src.get_grasp_pose_using_ik import get_q_from_ik
 
 import os
 os.environ["MUJOCO_GL"] = "egl"  # set before importing mujoco

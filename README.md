@@ -7,3 +7,19 @@
 ## 🧠 Overview
 
 UNDER CONSTRUCTION LOL
+
+
+## 🚀 Features
+
+- 🐼 Simulated **Franka Panda** with MoveIt 2 and Gazebo
+- 🌍 Custom MuJoCo world
+- 🧠 Integration with **VLM** models (only OpenVLA for now) to perform tasks from natural language instructions
+
+## 🗂️ Repository Structure 
+
+```bash
+
+```
+
+## 🙏 Acknowledgements
+
