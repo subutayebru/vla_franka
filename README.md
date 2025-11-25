@@ -42,7 +42,8 @@ vla_franka/
 - accelerate==0.19.1 / bitsandbytes for 4-bit loading
 
 ```bash 
-pip install -r requirements.txt 
+conda env create -f requirements.yml
+conda activate vla_franka
 ```
 
 ## 🙏 Acknowledgements
