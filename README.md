@@ -75,7 +75,7 @@ From repo root:
 docker build -t vla_franka:latest .
 ```
 
-3) *** Run default demo (Dockerfile CMD → pnp.py) ***
+3) **Run default demo (Dockerfile CMD → pnp.py)**
 
 ```bash
    sudo docker run -it --rm \
@@ -89,7 +89,7 @@ docker build -t vla_franka:latest .
   --ipc=host \
   vla_franka:latest
 ```
-4) *** Run VLA control (override the default CMD) ***
+4) **Run VLA control (override the default CMD)**
 
 ```bash
    sudo docker run -it --rm \
@@ -104,7 +104,7 @@ docker build -t vla_franka:latest .
   vla_franka:latest \
   python run_vla_control.py
 ```
-5) *** If you just want to enter the container***
+5) **If you just want to enter the container**
    
 ```bash
    sudo docker run -it --rm \
