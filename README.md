@@ -20,6 +20,7 @@ This repo connects **OpenVLA** with a **MuJoCo Franka pick-and-place** environme
 
 ```bash
 vla_franka/
+  pnp.py                        # classical pick-and-place for sanity check
   run_vla_control.py            # main entrypoint for VLA-based control
 
   core/
@@ -41,9 +42,87 @@ vla_franka/
 - transformers==1.40.1 
 - accelerate==0.19.1 / bitsandbytes for 4-bit loading
 
+## 🚀 Quickstart
+
+### Option A — Run on your local machine (w/ creating a conda env)
+
 ```bash 
 conda env create -f requirements.yml
 conda activate vla_franka
+
+# Run VLA control loop
+python run_vla_control.py
+
+#### OR! ####
+
+# Run classical sanity check
+python pnp.py
+```
+**Tip** Make sure you run commands from the repo root so relative asset paths like asset/... resolve correctly.
+
+### Option B — Run with Docker (GPU + MuJoCo Viewer)
+
+1) **Allow Docker to use your display**
+
+```bash
+xhost +local:docker
+```
+
+2) **Build image**
+
+From repo root:
+```bash
+docker build -t vla_franka:latest .
+```
+
+3) *** Run default demo (Dockerfile CMD → pnp.py) ***
+
+```bash
+   sudo docker run -it --rm \
+  --gpus all \
+  --net=host \
+  -e DISPLAY=$DISPLAY \
+  -e MUJOCO_GL=egl \
+  -v /tmp/.X11-unix:/tmp/.X11-unix \
+  -v "$(pwd)":/workspace/vla_franka \
+  -w /workspace/vla_franka \
+  --ipc=host \
+  vla_franka:latest
+```
+4) *** Run VLA control (override the default CMD) ***
+
+```bash
+   sudo docker run -it --rm \
+  --gpus all \
+  --net=host \
+  -e DISPLAY=$DISPLAY \
+  -e MUJOCO_GL=egl \
+  -v /tmp/.X11-unix:/tmp/.X11-unix \
+  -v "$(pwd)":/workspace/vla_franka \
+  -w /workspace/vla_franka \
+  --ipc=host \
+  vla_franka:latest \
+  python run_vla_control.py
+```
+5) *** If you just want to enter the container***
+   
+```bash
+   sudo docker run -it --rm \
+  --gpus all \
+  --net=host \
+  -e DISPLAY=$DISPLAY \
+  -e MUJOCO_GL=egl \
+  -v /tmp/.X11-unix:/tmp/.X11-unix \
+  -v "$(pwd)":/workspace/vla_franka \
+  -w /workspace/vla_franka \
+  --ipc=host \
+  vla_franka:latest \
+  bash
+```
+**Then inside the container:**
+```bash
+python pnp.py
+python run_vla_control.py
 ```
 
 ## 🙏 Acknowledgements

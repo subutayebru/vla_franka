@@ -11,7 +11,7 @@ import numpy as np
 #from mujoco import glfw 
 
 # ... load your model/data as usual
-model = mujoco.MjModel.from_xml_path("/home/es_admin/vla-franka/Simple-MuJoCo-PickNPlace/asset/panda/franka_panda_w_objs.xml")  # example
+model = mujoco.MjModel.from_xml_path("asset/panda/franka_panda_w_objs.xml")
 data = mujoco.MjData(model)
 
 # Offscreen renderer (no GLFW)

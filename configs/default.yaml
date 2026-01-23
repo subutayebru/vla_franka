@@ -1,7 +1,7 @@
 # configs/default.yaml
 
 camera_name: "panda_eye_in_hand"
-xml_path: "/home/es_admin/vla-franka/Simple-MuJoCo-PickNPlace/asset/panda/franka_panda_w_objs.xml"
+xml_path: "asset/panda/franka_panda_w_objs.xml"
 
 startup_ignore_ticks: 0
 phase_agnostic: false

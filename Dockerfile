@@ -16,4 +16,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Default command: run the pick-and-place script
-CMD ["python", "pnp.py"]
+CMD ["python", "run_vla_control.py"]
