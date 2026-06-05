@@ -2,6 +2,11 @@
 
 **Simulation and Control of the Franka Emika Panda Arm in MuJoCo with Vision-Language-Action Model Integration**
 
+> 🍎 **You are on the `macos` branch — the Apple Silicon (MPS) port.**
+> OpenVLA-7B is loaded in fp16 on the Mac GPU (MPS), with no `bitsandbytes`
+> 4-bit quantization (CUDA-only). The original NVIDIA/CUDA path lives on `main`.
+> See [docs/MACOS_PORT.md](docs/MACOS_PORT.md) for the full rationale and gotchas.
+
 ---
 
 ## 🧠 Overview
@@ -37,12 +42,57 @@ vla_franka/
 
 ## 📦 Dependencies
 
-- mujoco
-- torch 
-- transformers==1.40.1 
-- accelerate==0.19.1 / bitsandbytes for 4-bit loading
+- mujoco (the `mujoco` wheel ships the `mjpython` launcher used on macOS)
+- torch (Apple Silicon wheels include the MPS backend)
+- transformers==4.40.1 (pinned — OpenVLA's `trust_remote_code` modeling expects it)
+- timm==0.9.16, tokenizers==0.19.1
 
-## 🚀 Quickstart
+> `bitsandbytes` is **not** used on this branch (it is CUDA/Linux-only). The
+> model runs in fp16 with ~14 GB of weights, so you want a Mac with comfortable
+> unified memory (this branch was set up for a 48 GB machine).
+
+## 🚀 Quickstart (macOS / Apple Silicon)
+
+### 1. Create the environment
+
+```bash
+# Python 3.10 matches the original environment (Linux used 3.10.19).
+# Install it once via Homebrew if you don't have it: brew install python@3.10
+python3.10 -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+### 2. Run the VLA closed-loop control
+
+**Use `mjpython`, not `python`** — on macOS the interactive MuJoCo viewer must
+run on the main thread, and only `mjpython` (shipped with the `mujoco` wheel)
+sets that up. Plain `python` will fail to open the viewer.
+
+```bash
+# Default instruction from configs/default.yaml
+mjpython run_vla_control.py
+
+# Or override the instruction on the fly
+mjpython run_vla_control.py --prompt "go over the yellow cube"
+```
+
+The classical sanity check does not load the model and runs fine with `mjpython pnp.py`.
+
+**Tip** Run commands from the repo root so relative asset paths like `asset/...` resolve correctly.
+
+> First run downloads ~14 GB of OpenVLA-7B weights from the HuggingFace Hub.
+> Inference is not real-time on MPS (expect a few seconds per policy step); the
+> simulation stays correct, it just advances the policy less often.
+
+---
+
+## 🐧 Linux / NVIDIA path (on the `main` branch)
+
+The sections below describe the original CUDA + Docker workflow. They are
+**Linux/NVIDIA only** (`MUJOCO_GL=egl`, `bitsandbytes` 4-bit loading) and are
+kept here for reference; use the `main` branch for that setup.
 
 ### Option A — Run on your local machine (w/ creating a conda env)
 

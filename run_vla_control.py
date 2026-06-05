@@ -1,5 +1,18 @@
 # run_vla_control.py
 
+# --- Apple Silicon (MPS) runtime setup ---
+# Must run before torch / mujoco are imported (transitively via the modules
+# below). See docs/MACOS_PORT.md.
+import os
+
+# Fall back to CPU for any op OpenVLA uses that MPS doesn't implement yet,
+# instead of crashing.
+os.environ.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
+# EGL is the Linux/Docker offscreen backend; on macOS the default (CGL) is
+# correct. Clear it if inherited from the environment.
+if os.environ.get("MUJOCO_GL") == "egl":
+    del os.environ["MUJOCO_GL"]
+
 import numpy as np
 
 from core.env_wrapper import PandaEnv
