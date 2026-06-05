@@ -1,6 +1,12 @@
 # configs/default.yaml
 
-camera_name: "panda_eye_in_hand"
+# camera_name = the camera OpenVLA actually sees.
+# Experiment default is the third-person "standing_cam" (closer to the model's
+# training distribution than the wrist cam). Override per-run with --camera,
+# e.g. --camera panda_eye_in_hand. Original value was "panda_eye_in_hand".
+camera_name: "standing_cam"
+# view_camera = reference camera shown in the live-view window (not fed to VLA).
+view_camera: "panda_eye_in_hand"
 xml_path: "asset/panda/franka_panda_w_objs.xml"
 
 startup_ignore_ticks: 0

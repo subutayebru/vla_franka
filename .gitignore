@@ -127,3 +127,8 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# VLA run outputs (CSV logs) and MuJoCo log
+logs_control/
+vla_logs/
+MUJOCO_LOG.TXT

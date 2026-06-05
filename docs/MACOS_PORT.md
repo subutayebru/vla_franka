@@ -67,24 +67,52 @@ needed.
   `transformers==4.40.1`, `tokenizers==0.19.1`, `timm==0.9.16`,
   `mujoco==3.1.6`, `numpy==1.26.4`, `torch==2.4.1`, `torchvision==0.19.1`.
 
-## Critical runtime gotcha: `mjpython`
+## Visualization: plain `python`, not `mjpython`
 
-`src/mujoco_parser.py` opens the interactive viewer via
-`mujoco.viewer.launch_passive`. On macOS the viewer **must** run on the main
-thread (Cocoa requirement), which only the **`mjpython`** launcher (shipped with
-the `mujoco` pip wheel) sets up. Therefore:
+`mujoco.viewer.launch_passive` (the interactive 3D viewer) **must** run on the
+main thread on macOS (Cocoa requirement), which only the `mjpython` launcher
+provides. But under `mjpython` the script itself runs on a *worker* thread, and
+macOS then forbids creating **any** other GUI window from that thread — a
+matplotlib/OpenCV/GLFW window for the camera feed crashes with
+`NSWindow should only be instantiated on the main thread!`. So "interactive 3D
+viewer + a separate live camera-feed window" is not possible together on macOS.
+
+Since seeing **what OpenVLA sees** (the wrist camera) matters more here than an
+orbitable 3D view, this branch drops the passive viewer entirely and instead:
+
+- `core/env_wrapper.py` no longer calls `init_viewer`; it keeps two off-screen
+  `mujoco.Renderer`s — one for the wrist cam (`panda_eye_in_hand`, fed to the
+  model) and one for a scene overview (`standing_cam`).
+- `core/diagnostics_n_logging.py` provides `init_live_view` / `update_live_view`,
+  a **two-panel matplotlib window** (scene overview | wrist cam) updated each
+  policy step.
+- Because the script now owns the main thread (plain `python`), matplotlib's
+  default interactive macOS backend works — so `run_vla_control.py` does **not**
+  force `MPLBACKEND=Agg`.
 
 ```bash
-mjpython run_vla_control.py --prompt "..."   # ✅ viewer opens
-python   run_vla_control.py                  # ❌ viewer fails on macOS
+python run_vla_control.py --prompt "..."   # ✅ live two-panel window
+# mjpython is NOT used on this branch anymore
 ```
 
-## Matplotlib HUD caveat
+Trade-off: the 3D view is a fixed rendered camera, not orbitable. To restore an
+interactive 3D viewer you would go back to `mjpython` and give up the live
+camera-feed window.
 
-`core/env_wrapper.py` always opens a matplotlib HUD (`init_hud` / `update_hud`)
-alongside the GLFW viewer. Two GUI event loops under `mjpython` can be flaky on
-macOS. If the HUD misbehaves, guard those calls so `get_image()` just returns the
-rendered frame. (Not changed yet — only if needed.)
+### Live view panels + action graph + camera toggle
+
+- The live-view window shows two panels: **left = what OpenVLA sees**
+  (`camera_name`), **right = a reference camera** (`view_camera`). Both are
+  configurable; `camera_name` defaults to the third-person `standing_cam` (see
+  the camera experiment in `docs/OPENVLA_PIPELINE.md`) and can be flipped per-run
+  with `--camera` (e.g. `--camera panda_eye_in_hand`).
+- A second window, **"VLA action sanity check"** (`ActionMonitor` in
+  `core/diagnostics_n_logging.py`), plots EE→cube distance and the commanded
+  `dx/dy/dz`+gripper over time so you can watch whether the arm is behaving.
+- Both windows are matplotlib figures on the main thread — fine under plain
+  `python`, which is why this branch dropped `mjpython`.
+
+See **`docs/OPENVLA_PIPELINE.md`** for how the actions themselves are generated.
 
 ## Performance expectations
 

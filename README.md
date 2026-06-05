@@ -5,7 +5,9 @@
 > 🍎 **You are on the `macos` branch — the Apple Silicon (MPS) port.**
 > OpenVLA-7B is loaded in fp16 on the Mac GPU (MPS), with no `bitsandbytes`
 > 4-bit quantization (CUDA-only). The original NVIDIA/CUDA path lives on `main`.
-> See [docs/MACOS_PORT.md](docs/MACOS_PORT.md) for the full rationale and gotchas.
+> See [docs/MACOS_PORT.md](docs/MACOS_PORT.md) for the full rationale and gotchas,
+> and [docs/OPENVLA_PIPELINE.md](docs/OPENVLA_PIPELINE.md) for how OpenVLA turns a
+> command + image into robot motion (and why the arm moves the way it does).
 
 ---
 
@@ -66,19 +68,21 @@ pip install -r requirements.txt
 
 ### 2. Run the VLA closed-loop control
 
-**Use `mjpython`, not `python`** — on macOS the interactive MuJoCo viewer must
-run on the main thread, and only `mjpython` (shipped with the `mujoco` wheel)
-sets that up. Plain `python` will fail to open the viewer.
+Run with plain **`python`** (not `mjpython`). Instead of MuJoCo's interactive
+passive viewer (which on macOS requires `mjpython` and would block any camera
+window), this branch renders the cameras off-screen and shows a **matplotlib
+"live view" window** with two panels:
+
+- **scene (overview)** — the `standing_cam` view of the whole scene
+- **wrist cam — what OpenVLA sees** — the `panda_eye_in_hand` frame fed to the model
 
 ```bash
 # Default instruction from configs/default.yaml
-mjpython run_vla_control.py
+python run_vla_control.py
 
 # Or override the instruction on the fly
-mjpython run_vla_control.py --prompt "go over the yellow cube"
+python run_vla_control.py --prompt "go over the yellow cube"
 ```
-
-The classical sanity check does not load the model and runs fine with `mjpython pnp.py`.
 
 **Tip** Run commands from the repo root so relative asset paths like `asset/...` resolve correctly.
 

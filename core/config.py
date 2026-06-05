@@ -20,7 +20,8 @@ class StepsCfg:
 
 @dataclass
 class Cfg:
-    camera_name: str
+    camera_name: str          # camera fed to OpenVLA (what the model sees)
+    view_camera: str          # reference camera shown in the live-view window
     xml_path: str
     startup_ignore_ticks: int
     phase_agnostic: bool
@@ -49,6 +50,7 @@ def load_cfg():
     ap.add_argument("--force_text", action="store_true")
     ap.add_argument("--unnorm_key", default=None)
     ap.add_argument("--prompt", default=None, type=str)  # << your new flag
+    ap.add_argument("--camera", default=None, type=str)  # override VLA-input camera
     args = ap.parse_args()
 
     with open(args.cfg, "r") as f:
@@ -60,10 +62,15 @@ def load_cfg():
     # allow CLI override of instruction / prompt via --prompt
     instruction = args.prompt or y["instruction"]
 
+    # allow CLI override of the camera OpenVLA sees via --camera (e.g. flip
+    # between "standing_cam" and "panda_eye_in_hand" without editing the YAML)
+    camera_name = args.camera or y["camera_name"]
+
     ws = y["workspace"]
 
     cfg = Cfg(
-        camera_name=y["camera_name"],
+        camera_name=camera_name,
+        view_camera=y.get("view_camera", "panda_eye_in_hand"),
         xml_path=y["xml_path"],
         startup_ignore_ticks=int(y["startup_ignore_ticks"]),
         phase_agnostic=bool(y["phase_agnostic"]),
