@@ -132,3 +132,6 @@ dmypy.json
 logs_control/
 vla_logs/
 MUJOCO_LOG.TXT
+
+# LIBERO eval venv (separate from main .venv)
+.venv_libero/
