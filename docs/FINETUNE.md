@@ -3,9 +3,19 @@
 End-to-end recipe for the plan in `docs/LIBERO_EVAL.md`: we collect demos on the
 Mac, **fine-tune on a CUDA GPU**, then run the result back on the Mac.
 
+## Which dataset?
+
+Two collectors exist; **`robosuite_collect.py` is the active one** — it produces
+demos for *our own task* (Franka + **yellow/blue cube**, pick-by-colour) using
+robosuite's reliable OSC controller (`rs_demos/`). `libero_collect.py` (LIBERO
+`libero_object`, `libero_demos/`) was the earlier stepping stone. **Both write
+the identical `.npz` schema below**, so the RLDS + finetune steps are the same;
+only the deploy env differs (robosuite Stack vs LIBERO).
+
 ## 0. What we collected (Mac)
 
-`libero_collect.py` writes one `.npz` per successful episode to `libero_demos/`:
+The collectors write one `.npz` per successful episode (`rs_demos/` or
+`libero_demos/`):
 
 | key | shape / type | meaning |
 |---|---|---|
@@ -74,18 +84,20 @@ torchrun --standalone --nnodes 1 --nproc-per-node 1 vla-scripts/finetune.py \
 
 ## 3. Deploy back on the Mac
 
-Copy the merged checkpoint to the Mac (or push to a private HF repo), then run it
-with the existing MPS path — same as `run_libero_mac.py`, just point at the new
-checkpoint and use the dataset name as the unnorm key:
+Copy the merged checkpoint to the Mac, then run it on the **same env it was
+collected in**, with the same fp16/eager/MPS load path we proved earlier:
 
-```bash
-.venv_libero/bin/python run_libero_mac.py \
-  --suite libero_object --task_id 0 --watch \
-  --checkpoint /path/to/our_finetuned_ckpt
-```
-(For a custom checkpoint, `--unnorm_key` must equal the RLDS dataset name used in
-training; if it differs from the suite name, add a small flag — currently the CLI
-uses the suite name as the unnorm key.)
+- **robosuite yellow/blue task** → `robosuite_eval_mac.py` (recolored Stack;
+  prompt `pick up the {yellow|blue} cube`; identical agentview flip + resize-224
+  + center-crop preprocessing as the collector):
+  ```bash
+  .venv_libero/bin/python robosuite_eval_mac.py \
+    --checkpoint /path/to/our_finetuned_ckpt --color yellow --watch
+  ```
+- **LIBERO task** → `run_libero_mac.py --checkpoint /path/...`.
+
+The `--unnorm_key` must equal the RLDS dataset name used in training (the
+scripts default it; override if your dataset name differs).
 
 ## Notes / gotchas
 - **Zero-variance rotation dims.** Our expert grasps top-down, so action dims
