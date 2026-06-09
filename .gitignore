@@ -139,3 +139,7 @@ MUJOCO_LOG.TXT
 # Collected LIBERO demo data
 libero_demos/
 libero_scan/
+
+# robosuite demo data
+rs_demos/
+rs_rel/
