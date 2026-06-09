@@ -103,24 +103,37 @@ then in the `OXE_STANDARDIZATION_TRANSFORMS = {` dict add:
 > deploy), so do **not** add a gripper transform.
 
 ### 2b. Launch the fine-tune
-Then:
+
+**On a 24 GB GPU (e.g. RTX 4090) you must use QLoRA** (`--use_quantization
+True`). Plain bf16 LoRA needs ~27 GB+ and will OOM. QLoRA 4-bit drops the base to
+~4–5 GB, leaving room for activations.
 
 ```bash
+# install bitsandbytes + flash-attn on the GPU box first (CUDA-only)
 torchrun --standalone --nnodes 1 --nproc-per-node 1 vla-scripts/finetune.py \
   --vla_path openvla/openvla-7b \
   --data_root_dir ~/tensorflow_datasets \
-  --dataset_name libero_pick \
+  --dataset_name rs_pick \
   --run_root_dir runs \
   --use_lora True --lora_rank 32 \
-  --batch_size 8 --grad_accumulation_steps 1 \
+  --use_quantization True \
+  --batch_size 4 --grad_accumulation_steps 4 \
   --learning_rate 5e-4 \
   --image_aug True \
-  --save_steps 5000
+  --shuffle_buffer_size 10000 \
+  --max_steps 10000 --save_steps 2000
 ```
-- Needs a CUDA GPU ~24–48 GB (flash-attn + bitsandbytes are fine here).
-- `--image_aug True` ⇒ at inference use **center crop** (our `run_libero_mac.py`
-  already does crop 0.9).
-- LoRA adapters are merged into a checkpoint under `runs/...`.
+Tuning for **RTX 4090 (24 GB) + 36 GB RAM**:
+- `--use_quantization True` — **required** to fit 24 GB.
+- `--batch_size 4 --grad_accumulation_steps 4` → effective batch 16. If you still
+  OOM, drop to `--batch_size 2 --grad_accumulation_steps 8`.
+- `--shuffle_buffer_size 10000` — the default 100000 would blow past 36 GB RAM;
+  our dataset is only ~29k transitions so 10k is ample.
+- `--max_steps 10000` — small dataset (196 demos), no need for 200k.
+- `--image_aug True` ⇒ inference uses center-crop 0.9 (our deploy scripts do).
+- A QLoRA checkpoint is written under `runs/...`; **merge the LoRA adapter into
+  the base** before deploy (OpenVLA provides a merge step / `--save_steps` writes
+  merged weights — see the repo's LoRA section).
 
 ## 3. Deploy back on the Mac
 
