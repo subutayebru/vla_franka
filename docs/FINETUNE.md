@@ -63,9 +63,47 @@ tfds build   # writes ~/tensorflow_datasets/libero_pick/1.0.0
 
 ## 2. LoRA fine-tune (GPU box)
 
-In the `openvla` repo, register the dataset in
-`prismatic/vla/datasets/rlds/oxe/configs.py` + `transforms.py` + the mixture in
-`mixtures.py` (one entry pointing at `libero_pick`), then:
+### 2a. Register `rs_pick` in the OpenVLA repo (3 edits — copy-paste)
+
+**(i) `prismatic/vla/datasets/rlds/oxe/configs.py`** — add to `OXE_DATASET_CONFIGS`:
+```python
+    "rs_pick": {
+        "image_obs_keys": {"primary": "image", "secondary": None, "wrist": None},
+        "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
+        "state_obs_keys": ["EEF_state", None, "gripper_state"],
+        "state_encoding": StateEncoding.POS_EULER,
+        "action_encoding": ActionEncoding.EEF_POS,
+    },
+```
+
+**(ii) `prismatic/vla/datasets/rlds/oxe/transforms.py`** — add a transform and
+register it. Our action is already `[dx,dy,dz,drx,dry,drz, gripper(+1 close/-1
+open)]` and we keep it raw (no bridge-style binarize/relabel), so the transform
+just exposes the proprio fields the config names:
+```python
+def rs_pick_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
+    # state is zeros(8) (OpenVLA ignores proprio); split into the named fields.
+    trajectory["observation"]["EEF_state"] = trajectory["observation"]["state"][:, :6]
+    trajectory["observation"]["gripper_state"] = trajectory["observation"]["state"][:, -1:]
+    return trajectory
+```
+then in the `OXE_STANDARDIZATION_TRANSFORMS = {` dict add:
+```python
+    "rs_pick": rs_pick_dataset_transform,
+```
+
+**(iii) `prismatic/vla/datasets/rlds/oxe/mixtures.py`** — add to `OXE_NAMED_MIXTURES`:
+```python
+    "rs_pick": [("rs_pick", 1.0)],
+```
+
+> Constant rotation dims are fine: OpenVLA's normalizer uses a `+1e-8` epsilon and
+> a `min==max` zeros-mask (`data_utils.py`), so the all-zero `drx,dry,drz`
+> normalize to 0 (no NaN). Gripper stays raw ±1 end-to-end (collector → RLDS →
+> deploy), so do **not** add a gripper transform.
+
+### 2b. Launch the fine-tune
+Then:
 
 ```bash
 torchrun --standalone --nnodes 1 --nproc-per-node 1 vla-scripts/finetune.py \
@@ -102,13 +140,12 @@ The `--unnorm_key` must equal the RLDS dataset name used in training (the
 scripts default it; override if your dataset name differs).
 
 ## Notes / gotchas
-- **Zero-variance rotation dims.** Our expert grasps top-down, so action dims
-  `drx,dry,drz` are all exactly 0 across the dataset (verified). OpenVLA's action
-  normalization does `2*(x-q01)/(q99-q01)-1`, which **divides by zero** when
-  `q99==q01`. Fixes (pick one): (a) ensure the dataset-stats **mask** is `False`
-  for those 3 dims so they pass through un-normalized (OpenVLA already masks the
-  gripper dim this way); or (b) add tiny noise to the rotation dims at collection
-  time (`actions[:,3:6] += 1e-4 * randn`). Option (a) is cleaner.
+- **Zero-variance rotation dims (handled automatically).** Our expert grasps
+  top-down, so action dims `drx,dry,drz` are all exactly 0 (verified). OpenVLA's
+  normalizer (`prismatic/vla/datasets/rlds/utils/data_utils.py`) uses
+  `2*(x-q01)/(q99-q01+1e-8)-1` **and** a `min==max` zeros-mask, so constant dims
+  normalize to 0 with no NaN — nothing to fix. (Do NOT add noise; that would blow
+  up the normalized values via the tiny denominator.)
 - 249 episodes, ~33k transitions, 5 instructions (~50 each), all in one scene
   with all objects present (instruction-conditioned).
 - The 5 reliable objects (alphabet soup, bbq sauce, tomato sauce, butter,
