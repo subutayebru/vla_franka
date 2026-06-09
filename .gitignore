@@ -135,3 +135,7 @@ MUJOCO_LOG.TXT
 
 # LIBERO eval venv (separate from main .venv)
 .venv_libero/
+
+# Collected LIBERO demo data
+libero_demos/
+libero_scan/
