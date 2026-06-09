@@ -40,9 +40,11 @@ cd rlds_dataset_builder
 conda env create -f environment_ubuntu.yml && conda activate rlds_env
 ```
 
-Create a builder (e.g. `libero_pick/libero_pick_dataset_builder.py`) whose
-`_generate_examples` reads our `.npz` files and yields steps. The feature spec
-must match OpenVLA's expectations:
+For the robosuite yellow/blue dataset, **use the provided builder**
+[`rs_pick_dataset_builder.py`](../rs_pick_dataset_builder.py) (copy-paste; its
+header has the exact `tfds build` commands). It reads `rs_demos/*.npz` directly.
+For a hand-written builder, `_generate_examples` reads our `.npz` and yields
+steps; the feature spec must match OpenVLA's expectations:
 - `observation/image`: `Image(256,256,3, uint8)`
 - `observation/state`: `Tensor(8,) float32` (proprio; can be zeros — OpenVLA
   ignores proprio, but the field is expected)
