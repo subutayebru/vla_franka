@@ -62,7 +62,7 @@ def run_episode(env, color, debug_writer=None, record=True):
     instruction = f"pick up the {color} cube"
     start_z = obs[f"{cube}_pos"][2]
 
-    images, actions = [], []
+    images, actions, states = [], [], []
     phase, grip, ctr = "hover", GRIP_OPEN, 0
     for t in range(MAX_STEPS):
         eef = obs["robot0_eef_pos"]; c = obs[f"{cube}_pos"]
@@ -85,6 +85,10 @@ def run_episode(env, color, debug_writer=None, record=True):
         if record:
             images.append(obs["agentview_image"][::-1].copy())  # flip vertical (robosuite is upside-down)
             actions.append(act.copy())
+            # proprio state SmolVLA conditions on: eef pose (3 pos + 4 quat) + gripper (2)
+            states.append(np.concatenate([
+                obs["robot0_eef_pos"], obs["robot0_eef_quat"], obs["robot0_gripper_qpos"]
+            ]).astype(np.float32))
         if debug_writer is not None:
             debug_writer.append_data(obs["agentview_image"][::-1])
 
@@ -92,7 +96,7 @@ def run_episode(env, color, debug_writer=None, record=True):
 
     lifted = obs[f"{cube}_pos"][2] - start_z
     success = bool(lifted > LIFT_SUCCESS_DZ)
-    return success, instruction, np.array(images), np.array(actions, dtype=np.float32), lifted
+    return success, instruction, np.array(images), np.array(actions, dtype=np.float32), np.array(states, dtype=np.float32), lifted
 
 
 def main():
@@ -119,12 +123,12 @@ def main():
     succ = saved = 0
     for ep in range(args.episodes):
         w = writer if ep == 0 else None
-        ok, instr, imgs, acts, lifted = run_episode(env, colors[ep % 2], debug_writer=w)
+        ok, instr, imgs, acts, states, lifted = run_episode(env, colors[ep % 2], debug_writer=w)
         succ += int(ok)
         print(f"ep {ep}: color={colors[ep%2]:6s} success={ok} lifted={lifted:.3f} frames={len(imgs)} instr={instr!r}", flush=True)
         if ok:
             np.savez_compressed(os.path.join(args.out, f"ep{ep:04d}_{colors[ep%2]}.npz"),
-                                images=imgs, actions=acts, instruction=instr)
+                                images=imgs, actions=acts, states=states, instruction=instr)
             saved += 1
     if writer is not None:
         writer.close(); print(f"debug video: {args.debug_video}")
